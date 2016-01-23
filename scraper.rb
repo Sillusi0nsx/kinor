@@ -4,6 +4,7 @@
 require 'scraperwiki'
 require 'mechanize'
 require 'date'
+require 'mysql'
 
 =begin
 AGENT_ALIASES = {
@@ -21,12 +22,13 @@ AGENT_ALIASES = {
 }
 =end
 
+client = Mysql.connect('127.0.0.1', 'root', '', 'c4_kinokong')
 ScraperWiki.config = { db: 'data.sqlite', default_table_name: 'data' }
 
 agent = Mechanize.new
 agent.user_agent_alias = 'Windows IE 7'#'Mac Safari'
 
-for i in 1..1
+for i in 1..853
 page = agent.get("http://kinokong.net/films/page/#{i}/")
 
  page.encoding = "windows-1251"
@@ -51,38 +53,57 @@ page = agent.get("http://kinokong.net/films/page/#{i}/")
 
     url = link.href
     puts url
-    title = (review.search('.full-kino-title h1[1]').text)
+    title = Mysql.escape_string(review.search('.full-kino-title h1[1]').text)
     # artist = review_meta.search('h1')[0].text
     # album = review_meta.search('h2')[0].text
     # label, year = review_meta.search('h3')[0].text.split(';').map(&:strip)
     # reviewer = review_meta.search('h4 address')[0].text
     # review_date = Date.parse(review_meta.search('.pub-date')[0].text)
     # score = review_meta.search('.score').text.to_f
-    year = review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[3]/b').text
+    year = Mysql.escape_string(review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[3]/b').text)
 
-    sound = review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[4]/b/em').text
-    country = (review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[1]/b').text)
-    duration = review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[2]/b').text
-    genre = review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[5]/b').text
-    actors = (review.parser.xpath('//*[@id="left"]/div[1]/div[4]/a').text)#.join(";")#.to_s
-    director = (review.parser.xpath('//*[@id="left"]/div[1]/div[5]/a').text)
+    sound = Mysql.escape_string(review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[4]/b/em').text)
+    country = Mysql.escape_string(review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[1]/b').text)
+    duration = Mysql.escape_string(review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[2]/b').text)
+    genre = Mysql.escape_string(review.parser.xpath('//*[@id="left"]/div[1]/div[3]/div[5]/b').text)
+    actors = Mysql.escape_string(review.parser.xpath('//*[@id="left"]/div[1]/div[4]/a').text)#.join(";")#.to_s
+    director = Mysql.escape_string(review.parser.xpath('//*[@id="left"]/div[1]/div[5]/a').text)
     #image = review.parser.xpath('//*[@id="imgbigp"]')
     image = review.image_with(:id => 'imgbigp')
     quality_rip = review.parser.xpath('//*[@id="left"]/div[1]/div[1]/div').text
     content = review.parser.xpath('//*[@id="right"]/div[6]/div[2]').text
-    #p '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
+#    p '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
+#    p content
+begin  
+  content = review.at('div.box').text  
+rescue Exception => e  
+	p '<------------------------------------>'
+  puts e.message  
+  puts e.backtrace.inspect  
+end  
+    
+#p '<------------------------------------>'
+
     #p content
+
     match = content.scan(/flashvars\s*=\s*(.*)\s*;\s*var\s*params/i).to_s
-    p '<------------------------------------>'
-    p match
-    #p '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+#	p '<------------------------------------>'
+#    p match
+ #   p '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
     #('//*[@id="videoplayer15841"]')
     # review.parser.xpath('').text
-    desc = (review.search('.full-kino-story').text)#.parser.xpath('//*[@id="right"]/div[3]')#.text
+    desc = Mysql.escape_string(review.search('.full-kino-story').text)#.parser.xpath('//*[@id="right"]/div[3]')#.text
 
     sql = "INSERT INTO data (title,url,`data`,`year`,sound,country,duration,genre,actors,`image`,quality_rip,`desc`) VALUES ('#{title}','#{url}','#{match}','#{year}','#{sound}','#{country}','#{duration}','#{genre}','#{actors}','#{image}','#{quality_rip}','#{desc}')"
     #puts sql
 	ScraperWiki.save_sqlite(["name"], {"name" => title, "occupation" => match})
+
+	begin  
+  client.query(sql)  
+rescue Exception => e  
+  puts e.message  
+  puts e.backtrace.inspect  
+end 
 
   end
 end
