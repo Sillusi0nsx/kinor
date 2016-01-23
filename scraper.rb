@@ -22,7 +22,7 @@ AGENT_ALIASES = {
 }
 =end
 
-client = Mysql.connect('127.0.0.1', 'root', '', 'c4_kinokong')
+client = Mysql.connect('127.0.0.1', 'root', '', 'kinokong')
 ScraperWiki.config = { db: 'data.sqlite', default_table_name: 'data' }
 
 agent = Mechanize.new
